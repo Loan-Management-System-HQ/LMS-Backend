@@ -1,6 +1,7 @@
 import uuid
-from django.db import models
+
 from django.contrib.auth.models import AbstractBaseUser, BaseUserManager, PermissionsMixin
+from django.db import models
 from django.utils import timezone
 
 
@@ -36,10 +37,11 @@ class User(AbstractBaseUser, PermissionsMixin):
 
     # User fields
     email = models.EmailField(unique=True, max_length=128)
-    phone = models.CharField(max_length=32, blank=True, null=True)
+    # Use empty string default for text fields instead of NULL
+    phone = models.CharField(max_length=32, default="")
     name = models.CharField(max_length=128)
     is_active = models.BooleanField(default=False, db_column="isActive")
-    verification_link = models.CharField(max_length=255, blank=True, null=True, db_column="verificationLink")
+    verification_link = models.CharField(max_length=255, default="", db_column="verificationLink")
 
     # Django required fields
     is_staff = models.BooleanField(default=False)

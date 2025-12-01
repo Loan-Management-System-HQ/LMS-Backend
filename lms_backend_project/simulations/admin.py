@@ -1,10 +1,10 @@
 # simulations/admin.py
 from django.contrib import admin
 from django.utils.translation import gettext_lazy as _
-from .models import SimulationHeader, SimulationDetail
+
+from .models import SimulationDetail, SimulationHeader
 
 
-# Inline admin for SimulationDetail within SimulationHeader
 class SimulationDetailInline(admin.TabularInline):
     model = SimulationDetail
     extra = 0
@@ -12,7 +12,6 @@ class SimulationDetailInline(admin.TabularInline):
     can_delete = False
 
 
-# register SimulationHeader model with custom admin
 @admin.register(SimulationHeader)
 class SimulationHeaderAdmin(admin.ModelAdmin):
     list_display = ("id", "user", "amount", "interest_rate", "duration", "simulation_date")
@@ -30,7 +29,6 @@ class SimulationHeaderAdmin(admin.ModelAdmin):
     )
 
 
-# register SimulationDetail model with custom admin
 @admin.register(SimulationDetail)
 class SimulationDetailAdmin(admin.ModelAdmin):
     list_display = ("simulation", "installment_number", "beginning_balance", "installment", "ending_balance")

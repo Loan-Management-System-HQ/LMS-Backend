@@ -1,4 +1,5 @@
 import uuid
+
 from django.db import models
 
 
@@ -74,6 +75,7 @@ class LoanApplicationDocument(models.Model):
     # Django automatically creates 'id' field
     loan_application = models.ForeignKey(LoanApplication, on_delete=models.CASCADE, db_column="loanApplicationID")
     document = models.ForeignKey("documents.Document", on_delete=models.CASCADE, db_column="documentID")
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "loan_application_document"
@@ -123,6 +125,10 @@ class Loan(models.Model):
     # Many-to-Many with Customer through junction table
     customers = models.ManyToManyField("users.Customer", through="CustomerLoan")
 
+    # timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
     class Meta:
         db_table = "loan"
         ordering = ["-disbursement_date"]
@@ -135,6 +141,8 @@ class Loan(models.Model):
 class CustomerLoan(models.Model):
     customer = models.ForeignKey("users.Customer", on_delete=models.CASCADE, db_column="customerID")  # UPDATED
     loan = models.ForeignKey(Loan, on_delete=models.CASCADE, db_column="loanID")
+
+    created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         db_table = "customer_loan"
@@ -172,6 +180,10 @@ class Installment(models.Model):
     principal_due = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     interest_due = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     late_fee = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+
+    # timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         db_table = "installment"

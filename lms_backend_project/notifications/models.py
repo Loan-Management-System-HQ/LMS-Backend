@@ -1,4 +1,5 @@
 import uuid
+
 from django.db import models
 
 
@@ -25,7 +26,8 @@ class Notification(models.Model):
     # Notification content
     message = models.CharField(max_length=256)
     notification_type = models.CharField(max_length=50, choices=NOTIFICATION_TYPES, db_column="type")
-    link = models.CharField(max_length=500, blank=True, null=True, db_column="link")
+    # Prefer empty string defaults for text fields instead of NULL
+    link = models.CharField(max_length=500, default="", db_column="link")
 
     # ADD THESE MISSING FIELDS: [ERD doesn't have it]
     subject = models.CharField(max_length=255, default="")

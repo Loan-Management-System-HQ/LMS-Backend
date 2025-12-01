@@ -19,8 +19,8 @@ try:
 
     django.setup()
 
-    from django.db import connection
     from decouple import config
+    from django.db import connection
 
     print("=" * 120)
     print("Testing Database Connection for Loan Management System")
