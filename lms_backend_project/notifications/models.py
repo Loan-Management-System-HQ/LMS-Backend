@@ -27,6 +27,11 @@ class Notification(models.Model):
     notification_type = models.CharField(max_length=50, choices=NOTIFICATION_TYPES, db_column="type")
     link = models.CharField(max_length=500, blank=True, null=True, db_column="link")
 
+    # ADD THESE MISSING FIELDS: [ERD doesn't have it]
+    subject = models.CharField(max_length=255, default="")
+    is_sent = models.BooleanField(default=False)
+    sent_at = models.DateTimeField(null=True, blank=True)
+
     # Status
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)

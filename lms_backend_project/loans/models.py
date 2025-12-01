@@ -13,7 +13,12 @@ class LoanApplication(models.Model):
     ]
 
     # Django PK convention, maps to 'loanApplicationID' in DB
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_column="loanApplicationID")
+    id = models.UUIDField(
+        primary_key=True,
+        default=uuid.uuid4,
+        editable=False,
+        db_column="loanApplicationID",
+    )
 
     # Optional simulation reference
     simulation = models.ForeignKey(
@@ -92,10 +97,16 @@ class Loan(models.Model):
 
     # Relationships
     loan_application = models.OneToOneField(
-        LoanApplication, on_delete=models.PROTECT, related_name="loan", db_column="loanApplicationID"
+        LoanApplication,
+        on_delete=models.PROTECT,
+        related_name="loan",
+        db_column="loanApplicationID",
     )
     staff = models.ForeignKey(
-        "users.Staff", on_delete=models.PROTECT, related_name="approved_loans", db_column="staffID"
+        "users.Staff",
+        on_delete=models.PROTECT,
+        related_name="approved_loans",
+        db_column="staffID",
     )
 
     # Loan details
@@ -143,18 +154,24 @@ class Installment(models.Model):
     ]
 
     # Django PK convention
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_column="installmentID")
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
 
     # ForeignKey with Django convention, maps to 'loanID' in DB
     loan = models.ForeignKey(Loan, on_delete=models.CASCADE, related_name="installments", db_column="loanID")
 
-    amount = models.DecimalField(max_digits=15, decimal_places=2)
+    installment_number = models.IntegerField(db_column="installmentID")  # Sequential number of the installment
+    due_amount = models.DecimalField(max_digits=15, decimal_places=2, db_column="amount")
     due_date = models.DateTimeField(db_column="dueDate")
     status = models.CharField(max_length=20, choices=INSTALLMENT_STATUS, default="PENDING")
 
     # Payment info
     payment_amount = models.DecimalField(max_digits=15, decimal_places=2, default=0, db_column="paymentAmount")
     payment_date = models.DateTimeField(null=True, blank=True, db_column="paymentDate")
+
+    # ADD THESE MISSING FIELDS: [ERD doesn't have it]
+    principal_due = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    interest_due = models.DecimalField(max_digits=15, decimal_places=2, default=0)
+    late_fee = models.DecimalField(max_digits=15, decimal_places=2, default=0)
 
     class Meta:
         db_table = "installment"

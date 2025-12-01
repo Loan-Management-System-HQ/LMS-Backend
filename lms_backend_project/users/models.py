@@ -50,6 +50,24 @@ class User(AbstractBaseUser, PermissionsMixin):
     USERNAME_FIELD = "email"
     REQUIRED_FIELDS = ["name"]
 
+    # FIX: Add custom related_name to avoid conflict with Django Users
+    groups = models.ManyToManyField(
+        "auth.Group",
+        verbose_name="groups",
+        blank=True,
+        help_text="The groups this user belongs to.",
+        related_name="lms_user_set",  # CUSTOM related_name
+        related_query_name="lms_user",
+    )
+    user_permissions = models.ManyToManyField(
+        "auth.Permission",
+        verbose_name="user permissions",
+        blank=True,
+        help_text="Specific permissions for this user.",
+        related_name="lms_user_set",  # CUSTOM related_name
+        related_query_name="lms_user",
+    )
+
     class Meta:
         db_table = "user"
 

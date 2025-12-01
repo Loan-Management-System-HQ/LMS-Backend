@@ -19,7 +19,9 @@ class Document(models.Model):
     ]
 
     # Django PK convention, maps to 'documentID' in DB
-    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_column="documentID")
+    id = models.UUIDField(
+        primary_key=True, default=uuid.uuid4, editable=False, db_column="documentID"
+    )
 
     # ForeignKey with Django convention
     requested_by = models.ForeignKey(
@@ -31,12 +33,24 @@ class Document(models.Model):
         db_column="requestedBy",
     )
     uploaded_by = models.ForeignKey(
-        "users.User", on_delete=models.SET_NULL, null=True, related_name="uploaded_documents", db_column="uploadedBy"
+        "users.User",
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="uploaded_documents",
+        db_column="uploadedBy",
     )
 
     status = models.CharField(max_length=32, choices=DOCUMENT_STATUS, default="PENDING")
-    document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPES, db_column="type")
+    document_type = models.CharField(
+        max_length=50, choices=DOCUMENT_TYPES, db_column="type"
+    )
     link = models.CharField(max_length=500, db_column="link")  # URL or file path
+
+    # ADD THESE MISSING FIELDS: [ERD doesn't have it]
+    file_name = models.CharField(max_length=255)
+    file_path = models.CharField(max_length=500)
+    file_size = models.IntegerField(default=0)
+    mime_type = models.CharField(max_length=100, default="application/octet-stream")
 
     # Timestamps
     uploaded_at = models.DateTimeField(auto_now_add=True)
