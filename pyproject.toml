@@ -22,11 +22,11 @@ dependencies = [
 
 
 [tool.ruff]
-line-length=120
+line-length = 120
+exclude = ["migrations"]
 
 [tool.ruff.lint]
 ignore = []
-exclude = ["migrations", ]
 extend-select = ["E", "F", "I", "DJ"]
 
 [tool.ruff.format]
