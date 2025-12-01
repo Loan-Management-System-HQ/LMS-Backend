@@ -10,6 +10,8 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/5.2/ref/settings/
 """
 
+# JWT settings (install simplejwt first)
+from datetime import timedelta
 from pathlib import Path
 
 from decouple import Csv, config
@@ -165,9 +167,6 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 10,
 }
 
-
-# JWT settings (install simplejwt first)
-from datetime import timedelta
 
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=1),

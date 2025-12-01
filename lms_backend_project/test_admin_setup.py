@@ -3,11 +3,14 @@
 import os
 
 import django
+from django.contrib.admin.sites import site
+
+# Create a test superuser if needed
+from django.contrib.auth import get_user_model
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "lms_backend_project.settings")
 django.setup()
 
-from django.contrib.admin.sites import site
 
 print("Testing Admin Registration...")
 print("=" * 60)
@@ -27,8 +30,6 @@ print()
 print("=" * 60)
 print("Admin setup complete!")
 
-# Create a test superuser if needed
-from django.contrib.auth import get_user_model
 
 User = get_user_model()
 

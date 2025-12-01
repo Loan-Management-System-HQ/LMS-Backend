@@ -20,9 +20,7 @@ class Document(models.Model):
     ]
 
     # Django PK convention, maps to 'documentID' in DB
-    id = models.UUIDField(
-        primary_key=True, default=uuid.uuid4, editable=False, db_column="documentID"
-    )
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False, db_column="documentID")
 
     # ForeignKey with Django convention
     requested_by = models.ForeignKey(
@@ -42,9 +40,7 @@ class Document(models.Model):
     )
 
     status = models.CharField(max_length=32, choices=DOCUMENT_STATUS, default="PENDING")
-    document_type = models.CharField(
-        max_length=50, choices=DOCUMENT_TYPES, db_column="type"
-    )
+    document_type = models.CharField(max_length=50, choices=DOCUMENT_TYPES, db_column="type")
     link = models.CharField(max_length=500, db_column="link")  # URL or file path
 
     # ADD THESE MISSING FIELDS: [ERD doesn't have it]

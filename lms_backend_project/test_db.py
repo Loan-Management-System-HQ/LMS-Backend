@@ -19,7 +19,6 @@ try:
 
     django.setup()
 
-    from decouple import config
     from django.db import connection
 
     print("=" * 120)
