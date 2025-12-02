@@ -3,7 +3,7 @@ from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework_simplejwt.tokens import RefreshToken
 
-from .serializers import UserLoginSerializer, UserRegisterSerializer, UserSerializer
+from .serializers import UserLoginSerializer, UserLogoutSerializer, UserRegisterSerializer, UserSerializer
 
 User = get_user_model()
 
@@ -77,7 +77,7 @@ class LogoutView(generics.CreateAPIView):
     # Allow anonymous clients to send a refresh token for blacklisting
     # so the frontend can log out by providing the refresh token only.
     permission_classes = (permissions.AllowAny,)
-    serializer_class = None  # No serializer needed for logout
+    serializer_class = UserLogoutSerializer
 
     def create(self, request, *args, **kwargs):
         try:

@@ -59,3 +59,7 @@ class CustomerSerializer(serializers.ModelSerializer):
 class UserLoginSerializer(serializers.Serializer):
     email = serializers.EmailField(required=True)
     password = serializers.CharField(write_only=True, required=True, style={"input_type": "password"})
+
+
+class UserLogoutSerializer(serializers.Serializer):
+    pass
