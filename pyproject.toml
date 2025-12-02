@@ -17,6 +17,7 @@ dependencies = [
     "psycopg2-binary>=2.9.11",
     "python-decouple>=3.8",
     "ruff>=0.14.7",
+    "six>=1.17.0",
 ]
 
 
