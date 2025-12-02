@@ -40,7 +40,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     # Use empty string default for text fields instead of NULL
     phone = models.CharField(max_length=32, default="")
     name = models.CharField(max_length=128)
-    is_active = models.BooleanField(default=False, db_column="isActive")
+    is_active = models.BooleanField(
+        default=True, db_column="isActive"
+    )  # make default True for testing, change to False for production
     verification_link = models.CharField(max_length=255, default="", db_column="verificationLink")
 
     # Django required fields

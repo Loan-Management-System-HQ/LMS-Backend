@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     # third-party apps
     "rest_framework",
+    "rest_framework_simplejwt",
     "corsheaders",
     "drf_yasg",
     # local apps
@@ -148,6 +149,10 @@ MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 
+# Use the custom user model defined in the `users` app
+AUTH_USER_MODEL = "users.User"
+
+
 # CORS settings (for React Frontend)
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
@@ -167,10 +172,41 @@ REST_FRAMEWORK = {
     "PAGE_SIZE": 10,
 }
 
-
+# JWT Settings
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(days=1),
     "REFRESH_TOKEN_LIFETIME": timedelta(days=7),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
+}
+
+
+# Authentication for Custom User model
+AUTHENTICATION_BACKENDS = [
+    "users.backends.EmailBackend",  # Custom backend for email auth
+    "django.contrib.auth.backends.ModelBackend",  # Default backend
+]
+
+
+# Swagger/OpenAPI settings
+SWAGGER_SETTINGS = {
+    "SECURITY_DEFINITIONS": {
+        "Bearer": {
+            "type": "apiKey",
+            "name": "Authorization",
+            "in": "header",
+            "description": "JWT Authorization header using the Bearer scheme. Example: 'Authorization: Bearer {token}'",
+        }
+    },
+    "USE_SESSION_AUTH": False,
+    "JSON_EDITOR": True,
+    "SUPPORTED_SUBMIT_METHODS": ["get", "post", "put", "delete", "patch"],
+    "SHOW_REQUEST_HEADERS": True,
+}
+
+
+# Redoc settings
+REDOC_SETTINGS = {
+    "LAZY_RENDERING": True,
+    "SPEC_URL": ("schema-json", {"format": ".json"}),
 }

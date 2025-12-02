@@ -16,8 +16,26 @@ Including another URLconf
 """
 
 from django.contrib import admin
-from django.urls import path
+from django.urls import include, path, re_path
+from django.views.generic import RedirectView
+from users.api_schema import schema_view
 
 urlpatterns = [
+    # Redirect root to docs
+    path("", RedirectView.as_view(url="/api/docs/", permanent=False)),
+    # Admin
     path("admin/", admin.site.urls),
+    # API Authentication
+    path("api/auth/", include("users.urls")),
+    # API Documentation
+    path("api/docs/", schema_view.with_ui("swagger", cache_timeout=0), name="schema-swagger-ui"),
+    path("api/redoc/", schema_view.with_ui("redoc", cache_timeout=0), name="schema-redoc"),
+    path("swagger.json", schema_view.without_ui(cache_timeout=0), name="schema-json"),
+    path("swagger.yaml", schema_view.without_ui(cache_timeout=0), name="schema-yaml"),
+    # OpenAPI schema
+    re_path(r"^swagger(?P<format>\.json|\.yaml)$", schema_view.without_ui(cache_timeout=0), name="schema-json"),
 ]
+
+# Add error handlers (optional but good for debugging)
+handler404 = "lms_backend_project.views.handler404"
+handler500 = "lms_backend_project.views.handler500"
