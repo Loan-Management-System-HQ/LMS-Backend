@@ -100,7 +100,7 @@ ANONYMOUS_SIMULATION_RESPONSE = {
 ERROR_RESPONSE_EXAMPLE = {
     "amount": ["This field is required."],
     "duration": ["Ensure this value is greater than or equal to 1."],
-    "interest_rate": ["Ensure this value is greater than or equal to 0.01."],
+    "interest_rate": ["Ensure this value is greater than or equal to 0.00."],
 }
 
 USE_FOR_APPLICATION_RESPONSE = {
