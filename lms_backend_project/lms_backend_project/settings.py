@@ -210,3 +210,15 @@ REDOC_SETTINGS = {
     "LAZY_RENDERING": True,
     "SPEC_URL": ("schema-json", {"format": ".json"}),
 }
+
+
+# Document storage configuration
+# Document storage configuration
+DOCUMENT_STORAGE_MODE = "FILE_UPLOAD"  # Options: 'FILE_UPLOAD', 'EXTERNAL_LINK', 'BOTH'
+
+# File upload settings
+MAX_DOCUMENT_SIZE = 10 * 1024 * 1024  # 10MB
+ALLOWED_DOCUMENT_EXTENSIONS = [".pdf", ".jpg", ".jpeg", ".png", ".doc", ".docx", ".txt", ".csv"]
+
+# External link settings (if using external storage)
+EXTERNAL_STORAGE_BASE_URL = "https://your-storage-bucket.s3.amazonaws.com/"  # Example for AWS S3
