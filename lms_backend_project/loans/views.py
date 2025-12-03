@@ -66,8 +66,8 @@ class LoanApplicationViewSet(viewsets.ModelViewSet):
             return Response({"error": "Application has already been submitted"}, status=status.HTTP_400_BAD_REQUEST)
 
         # Enforce a minimum number of documents attached before allowing submission.
-        # Business rule: users must attach at least 3 documents (types are not enforced here).
-        MIN_DOCUMENTS = 3
+        # Business rule: users must attach at least 1 document (types are not enforced here).
+        MIN_DOCUMENTS = 1
         attached_count = LoanApplicationDocument.objects.filter(loan_application=loan_application).count()
 
         if attached_count < MIN_DOCUMENTS:
