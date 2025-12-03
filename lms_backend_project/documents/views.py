@@ -1,5 +1,3 @@
-from django.conf import settings
-from django.core.mail import send_mail
 from django.http import FileResponse
 from django.utils import timezone
 from django_filters.rest_framework import DjangoFilterBackend
@@ -234,68 +232,8 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
         document.save()
 
-        # After approval, check if this document is linked to any loan applications.
-        # If all required documents for an application are APPROVED, auto-submit the saved application
-        # and notify the applicant.
-        try:
-            from loans.models import LoanApplicationDocument, UserLoanApplication
-
-            required_types = {"GOVT_ID", "PAYROLL", "CREDIT_HISTORY"}
-
-            linked_entries = LoanApplicationDocument.objects.filter(document=document).select_related(
-                "loan_application"
-            )
-
-            for entry in linked_entries:
-                loan_app = entry.loan_application
-
-                # Only consider saved/draft applications for auto-submit
-                if loan_app.status != "DRAFT":
-                    continue
-
-                approved_types = set(
-                    LoanApplicationDocument.objects.filter(
-                        loan_application=loan_app, document__status="APPROVED"
-                    ).values_list("document__document_type", flat=True)
-                )
-
-                if required_types.issubset(approved_types):
-                    # All required documents approved -> auto-submit
-                    loan_app.status = "SUBMITTED"
-                    loan_app.save()
-
-                    # Determine recipient (primary customer or first linked user)
-                    recipient = None
-                    if hasattr(loan_app, "customer") and loan_app.customer:
-                        recipient = loan_app.customer
-                    else:
-                        ula = UserLoanApplication.objects.filter(loan_application=loan_app).first()
-                        recipient = ula.user if ula else None
-
-                    if recipient:
-                        # Send email notification to the applicant
-                        try:
-                            recipient_email = getattr(recipient, "email", None)
-                            subject = "Your loan application was submitted"
-                            # Build a simple email notifying the user of auto-submission.
-                            # Only include the application ID (no direct link) — user will log in and search by ID.
-                            message = (
-                                f"Hello {getattr(recipient, 'name', '')},\n\n"
-                                f"Your loan application {str(loan_app.id)} was automatically submitted after all "
-                                "required documents were approved.\n\n"
-                                f"Application ID: {loan_app.id}\n\n"
-                                "Please log in to your account and use the application ID to view the details.\v\n"
-                                "Regards,\nLoan Management Team"
-                            )
-                            from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "no-reply@fastfunding-lms.com")
-                            if recipient_email:
-                                send_mail(subject, message, from_email, [recipient_email], fail_silently=True)
-                        except Exception:
-                            # Don't let email failures block the approval process
-                            pass
-        except Exception:
-            # Be conservative: don't let notification or loan-app logic break the approval flow
-            pass
+        # Document approval no longer auto-submits loan applications in the new flow.
+        # Keep the approve action focused on marking the document as APPROVED.
 
         # Return detailed response
         response_data = {

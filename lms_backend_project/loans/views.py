@@ -65,21 +65,17 @@ class LoanApplicationViewSet(viewsets.ModelViewSet):
         if loan_application.status != "DRAFT":
             return Response({"error": "Application has already been submitted"}, status=status.HTTP_400_BAD_REQUEST)
 
-        # Enforce mandatory documents before allowing submission
-        required_types = {"GOVT_ID", "PAYROLL", "CREDIT_HISTORY"}
-        # Only consider documents that have been APPROVED
-        attached_types = set(
-            LoanApplicationDocument.objects.filter(
-                loan_application=loan_application, document__status="APPROVED"
-            ).values_list("document__document_type", flat=True)
-        )
+        # Enforce a minimum number of documents attached before allowing submission.
+        # Business rule: users must attach at least 3 documents (types are not enforced here).
+        MIN_DOCUMENTS = 3
+        attached_count = LoanApplicationDocument.objects.filter(loan_application=loan_application).count()
 
-        missing = required_types - attached_types
-        if missing:
+        if attached_count < MIN_DOCUMENTS:
             return Response(
                 {
-                    "error": "Missing mandatory documents for submission",
-                    "missing_document_types": list(missing),
+                    "error": "Not enough documents attached for submission",
+                    "required_documents_count": MIN_DOCUMENTS,
+                    "attached_documents_count": attached_count,
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
@@ -94,10 +90,9 @@ class LoanApplicationViewSet(viewsets.ModelViewSet):
         """Approve a loan application (staff only)"""
         loan_application = self.get_object()
 
-        if loan_application.status != "UNDER_REVIEW":
-            return Response(
-                {"error": "Application must be under review to approve"}, status=status.HTTP_400_BAD_REQUEST
-            )
+        # Allow staff to approve applications that are DRAFT, UNDER_REVIEW, or SUBMITTED
+        if loan_application.status == "APPROVED":
+            return Response({"error": "Application is already approved"}, status=status.HTTP_400_BAD_REQUEST)
 
         loan_application.status = "APPROVED"
         loan_application.is_approved = True
