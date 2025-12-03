@@ -10,12 +10,12 @@ from .models import CustomerLoan, Installment, Loan, LoanApplication, LoanApplic
 class LoanApplicationSerializer(serializers.ModelSerializer):
     """Serializer for LoanApplication"""
 
-    customer = UserSerializer(source="customer", read_only=True)
-    customer_name = serializers.CharField(source="customer_name", read_only=True)
+    customer = UserSerializer(read_only=True)
+    customer_name = serializers.CharField(read_only=True)
     emi = serializers.SerializerMethodField()
     total_payable = serializers.SerializerMethodField()
     total_interest = serializers.SerializerMethodField()
-    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    status_display = serializers.CharField(read_only=True)
 
     class Meta:
         model = LoanApplication
@@ -97,10 +97,10 @@ class LoanSerializer(serializers.ModelSerializer):
 
     loan_application = LoanApplicationSerializer(read_only=True)
     staff = serializers.StringRelatedField()
-    primary_customer = CustomerSerializer(source="primary_customer", read_only=True)
+    primary_customer = CustomerSerializer(read_only=True)
     outstanding_balance = serializers.SerializerMethodField()
     next_due_date = serializers.SerializerMethodField()
-    status_display = serializers.CharField(source="get_status_display", read_only=True)
+    status_display = serializers.CharField(read_only=True)
 
     class Meta:
         model = Loan
@@ -176,7 +176,7 @@ class PaymentSerializer(serializers.Serializer):
     """Serializer for making payments"""
 
     installment_id = serializers.UUIDField()
-    amount = serializers.DecimalField(max_digits=15, decimal_places=2, min_value=0.01)
+    amount = serializers.DecimalField(max_digits=15, decimal_places=2, min_value=Decimal("0.01"))
     payment_date = serializers.DateTimeField(required=False)
 
     def validate(self, data):
@@ -198,8 +198,10 @@ class PaymentSerializer(serializers.Serializer):
 class LoanCalculatorSerializer(serializers.Serializer):
     """Serializer for loan calculation"""
 
-    amount = serializers.DecimalField(max_digits=15, decimal_places=2, min_value=1000)
-    interest_rate = serializers.DecimalField(max_digits=5, decimal_places=2, min_value=0.1, max_value=100)
+    amount = serializers.DecimalField(max_digits=15, decimal_places=2, min_value=Decimal("1000"))
+    interest_rate = serializers.DecimalField(
+        max_digits=5, decimal_places=2, min_value=Decimal("0.10"), max_value=Decimal("100")
+    )
     duration = serializers.IntegerField(min_value=3, max_value=360)
 
     def calculate(self):

@@ -1,5 +1,6 @@
 from django.contrib import admin
-from .models import LoanApplication, UserLoanApplication, LoanApplicationDocument, Loan, CustomerLoan, Installment
+
+from .models import CustomerLoan, Installment, Loan, LoanApplication, LoanApplicationDocument, UserLoanApplication
 
 
 @admin.register(LoanApplication)

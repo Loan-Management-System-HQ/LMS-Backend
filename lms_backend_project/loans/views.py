@@ -1,22 +1,20 @@
-from rest_framework import viewsets, generics, status, permissions
-from rest_framework.decorators import action
-from rest_framework.response import Response
-from django_filters.rest_framework import DjangoFilterBackend
-from rest_framework.filters import SearchFilter, OrderingFilter
-from django.db.models import Q, Sum, Count
-from django.utils import timezone
-from datetime import datetime, timedelta
+from datetime import timedelta
 
-from .models import LoanApplication, UserLoanApplication, LoanApplicationDocument, Loan, CustomerLoan, Installment
+from django.db.models import Sum
+from django.utils import timezone
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import generics, permissions, status, viewsets
+from rest_framework.decorators import action
+from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.response import Response
+
+from .models import CustomerLoan, Installment, Loan, LoanApplication, LoanApplicationDocument, UserLoanApplication
 from .serializers import (
-    LoanApplicationSerializer,
-    UserLoanApplicationSerializer,
-    LoanApplicationDocumentSerializer,
-    LoanSerializer,
-    CustomerLoanSerializer,
     InstallmentSerializer,
-    PaymentSerializer,
+    LoanApplicationSerializer,
     LoanCalculatorSerializer,
+    LoanSerializer,
+    PaymentSerializer,
 )
 
 

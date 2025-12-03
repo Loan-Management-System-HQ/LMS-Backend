@@ -1,0 +1,86 @@
+# Multi-stage Dockerfile.Backend
+# - Uses `uv` (Rust-based Python manager) to sync packages from pyproject.toml + uv.lock
+# - Builds in a small builder stage and installs runtime deps in final minimal image
+# - Uses `uvicorn` as the production ASGI server (as requested)
+
+##############################
+# Builder: prepare source / optional build tasks
+##############################
+FROM rust:alpine AS builder
+
+# Install minimal tooling required to fetch `uv`
+RUN apk add --no-cache curl tar gzip bash ca-certificates build-base \
+    && update-ca-certificates || true
+
+# Download uv (musl build) to make uv available in builder.
+# Note: this is the musl build (alpine). We will also install uv in the final stage
+RUN mkdir -p /usr/local/uv && \
+    curl -L https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-unknown-linux-musl.tar.gz -o /tmp/uv.tgz \
+    && tar -xzf /tmp/uv.tgz -C /usr/local/uv --strip-components=0 || true \
+    && cp /usr/local/uv/uv /usr/local/bin/uv || true \
+    && chmod +x /usr/local/bin/uv || true
+
+WORKDIR /src
+
+# Copy dependency manifests so `uv sync` can read them
+COPY pyproject.toml uv.lock ./
+
+# Install Python 3.14 and create venv (builder only). These steps are optional
+# but allow running build-time tasks that need Python (linting, static analysis).
+RUN set -eux; \
+    if command -v uv >/dev/null 2>&1; then \
+        uv python install 3.14 || true; \
+        uv venv /opt/venv || true; \
+        export PATH=/opt/venv/bin:$PATH; \
+        uv sync || true; \
+    else \
+        echo "uv not available in builder"; \
+    fi
+
+# Copy application source for build-time steps (collectstatic, tests, etc.)
+COPY lms_backend_project/ ./lms_backend_project/
+
+##############################
+# Final: minimal runtime image
+##############################
+FROM python:3.14-slim AS final
+
+# Install runtime system dependencies (adjust as needed for DB drivers)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl build-essential libpq-dev gcc g++ libssl-dev pkg-config \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install uv (glibc build) into final image so we can use uv sync here
+RUN curl -L https://github.com/astral-sh/uv/releases/latest/download/uv-x86_64-unknown-linux-gnu.tar.gz -o /tmp/uv.tgz \
+    && tar -xzf /tmp/uv.tgz -C /usr/local/bin --strip-components=0 uv || true \
+    && chmod +x /usr/local/bin/uv || true
+
+WORKDIR /app
+
+# Copy dependency manifests
+COPY pyproject.toml uv.lock ./
+
+# Use uv to synchronize production dependencies into the image environment
+# `uv sync --no-dev` will install packages from `pyproject.toml` and `uv.lock`.
+RUN set -eux; \
+    if command -v uv >/dev/null 2>&1; then \
+        uv sync --no-dev; \
+    else \
+        echo "uv not installed"; exit 1; \
+    fi
+
+# Copy application code
+COPY lms_backend_project/ ./lms_backend_project/
+
+# Expose port and use uvicorn as the ASGI server (single worker by default)
+EXPOSE 8000
+
+ENV PYTHONUNBUFFERED=1
+
+# Default command: start uvicorn for production. Use multiple workers for better concurrency.
+# NOTE: --reload is removed for production; enable only for local development.
+CMD ["uvicorn", "lms_backend_project.asgi:application", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+
+# Healthcheck (basic): verifies the OpenAPI docs endpoint is reachable
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD curl -f http://localhost:8000/api/docs/ || exit 1
