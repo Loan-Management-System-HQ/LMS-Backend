@@ -6,6 +6,7 @@ from rest_framework import permissions, serializers, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from .api_schema import calculate_schema, create_schema
 from .models import SimulationDetail, SimulationHeader
 from .serializers import (
     AnonymousSimulationCreateSerializer,
@@ -54,6 +55,7 @@ class SimulationViewSet(viewsets.ModelViewSet):
 
         return parsed
 
+    @create_schema
     def create(self, request, *args, **kwargs):
         """
         Create a new simulation.
@@ -109,6 +111,7 @@ class SimulationViewSet(viewsets.ModelViewSet):
         except Exception as e:
             return Response({"error": "Invalid input data", "detail": str(e)}, status=status.HTTP_400_BAD_REQUEST)
 
+    @calculate_schema
     @action(detail=False, methods=["post"], permission_classes=[permissions.AllowAny])
     def calculate(self, request):
         """
@@ -146,7 +149,15 @@ class SimulationViewSet(viewsets.ModelViewSet):
         """
         Get simulation history for authenticated user
         """
-        simulations = SimulationHeader.objects.filter(user=request.user).order_by("-simulation_date")
+        # Short-circuit during schema generation / fake view
+        if getattr(self, "swagger_fake_view", False):
+            return Response([])
+
+        user = getattr(request, "user", None)
+        if user is None or not getattr(user, "is_authenticated", False):
+            return Response([], status=status.HTTP_401_UNAUTHORIZED)
+
+        simulations = SimulationHeader.objects.filter(user=user).order_by("-simulation_date")
         serializer = self.get_serializer(simulations, many=True)
         return Response(serializer.data)
 
@@ -175,7 +186,15 @@ class SimulationViewSet(viewsets.ModelViewSet):
         """
         Clear all simulations for the authenticated user.
         """
-        deleted_count, _ = SimulationHeader.objects.filter(user=request.user).delete()
+        # Short-circuit for fake views
+        if getattr(self, "swagger_fake_view", False):
+            return Response({"status": "success", "message": "Deleted 0 simulations from history"})
+
+        user = getattr(request, "user", None)
+        if user is None or not getattr(user, "is_authenticated", False):
+            return Response({"error": "Authentication required"}, status=status.HTTP_401_UNAUTHORIZED)
+
+        deleted_count, _ = SimulationHeader.objects.filter(user=user).delete()
         return Response({"status": "success", "message": f"Deleted {deleted_count} simulations from history"})
 
     def _create_simulation_details(self, simulation):

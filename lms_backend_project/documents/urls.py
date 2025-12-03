@@ -8,6 +8,7 @@ router.register(r"documents", views.DocumentViewSet, basename="document")
 
 urlpatterns = [
     path("", include(router.urls)),
+    # API documentation endpoints for this app
     # Statistics
     path("stats/", views.DocumentStatsView.as_view(), name="document-stats"),
     # Staff dashboard

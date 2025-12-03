@@ -7,6 +7,17 @@ from users.serializers import CustomerSerializer, UserSerializer
 from .models import CustomerLoan, Installment, Loan, LoanApplication, LoanApplicationDocument, UserLoanApplication
 
 
+class DashboardStatsSerializer(serializers.Serializer):
+    """Serializer for dashboard statistics"""
+
+    total_loans = serializers.IntegerField()
+    pending_loans = serializers.IntegerField()
+    approved_loans = serializers.IntegerField()
+    rejected_loans = serializers.IntegerField()
+    active_loans = serializers.IntegerField()
+    total_disbursed = serializers.DecimalField(max_digits=12, decimal_places=2)
+
+
 class LoanApplicationSerializer(serializers.ModelSerializer):
     """Serializer for LoanApplication"""
 

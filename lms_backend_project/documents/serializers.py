@@ -41,10 +41,6 @@ class DocumentSerializer(serializers.ModelSerializer):
             "file_url",
             "download_url",
             "original_filename",
-            "display_filename",
-            "stored_filename",
-            "file_name",
-            "file_path",
             "file_size",
             "file_extension",
             "mime_type",
@@ -56,6 +52,9 @@ class DocumentSerializer(serializers.ModelSerializer):
             "storage_mode",
             "is_file_upload",
             "is_external_link",
+            "rejection_note",
+            "stored_filename",
+            "loan_application",
         ]
         read_only_fields = [
             "id",
@@ -66,15 +65,12 @@ class DocumentSerializer(serializers.ModelSerializer):
             "updated_at",
             "file_size",
             "mime_type",
-            "file_name",
-            "file_path",
             "original_filename",
-            "display_filename",
-            "stored_filename",
             "file_extension",
             "storage_mode",
             "is_file_upload",
             "is_external_link",
+            "rejection_note",
         ]
 
     def get_file_url(self, obj):
@@ -106,12 +102,6 @@ class DocumentSerializer(serializers.ModelSerializer):
 
     def get_is_pending(self, obj):
         return obj.status == "PENDING"
-
-    def get_stored_filename(self, obj):
-        """Get the actual stored filename (for file uploads)"""
-        if obj.file:
-            return os.path.basename(obj.file.name)
-        return ""
 
     def get_storage_mode(self, obj):
         """Get storage mode"""
@@ -210,6 +200,9 @@ class DocumentUploadSerializer(serializers.Serializer):
     file = serializers.FileField(required=False, allow_null=True)
     link = serializers.CharField(required=False, allow_null=True, max_length=500)
 
+    # Optional loan application ID to link document to application
+    loan_application_id = serializers.UUIDField(required=False, allow_null=True)
+
     display_filename = serializers.CharField(
         required=False, allow_blank=True, max_length=255, help_text="Optional custom display name"
     )
@@ -246,155 +239,22 @@ class DocumentUploadSerializer(serializers.Serializer):
 # ===== Staff Action Serializers =====
 # approve
 class DocumentApproveSerializer(serializers.Serializer):
-    """Detailed serializer for approving documents"""
+    """Simplified serializer for approving documents"""
 
     notes = serializers.CharField(
         required=False, allow_blank=True, max_length=500, help_text="Optional approval notes or comments"
     )
 
-    verification_method = serializers.ChoiceField(
-        choices=[
-            ("MANUAL_REVIEW", "Manual Review"),
-            ("AUTO_VERIFIED", "Automatically Verified"),
-            ("THIRD_PARTY", "Third Party Verification"),
-            ("OTHER", "Other"),
-        ],
-        required=False,
-        default="MANUAL_REVIEW",
-        help_text="Method used to verify the document",
-    )
-
-    next_review_date = serializers.DateField(
-        required=False,
-        allow_null=True,
-        help_text="Optional date when this document should be reviewed again (YYYY-MM-DD)",
-    )
-
-    tags = serializers.ListField(
-        child=serializers.CharField(max_length=50),
-        required=False,
-        default=list,
-        help_text="Optional tags for categorization (e.g., ['verified', 'high_priority'])",
-    )
-
-    is_conditional = serializers.BooleanField(
-        required=False, default=False, help_text="Whether this approval is conditional"
-    )
-
-    conditions = serializers.CharField(
-        required=False, allow_blank=True, max_length=1000, help_text="Conditions for conditional approval"
-    )
-
-    def validate_next_review_date(self, value):
-        """Validate next review date is in the future"""
-        if value and value < timezone.now().date():
-            raise serializers.ValidationError("Next review date must be in the future")
-        return value
-
-    def validate_tags(self, value):
-        """Validate tags"""
-        if value:
-            # Remove duplicates
-            value = list(set(value))
-            # Limit number of tags
-            if len(value) > 10:
-                raise serializers.ValidationError("Maximum 10 tags allowed")
-        return value
-
-    def validate(self, data):
-        """Validate conditional approval"""
-        if data.get("is_conditional") and not data.get("conditions"):
-            raise serializers.ValidationError({"conditions": "Conditions are required for conditional approval"})
-        return data
-
 
 # reject
 class DocumentRejectSerializer(serializers.Serializer):
-    """Detailed serializer for rejecting documents"""
+    """Simplified serializer for rejecting documents"""
 
-    reason = serializers.CharField(required=True, max_length=1000, help_text="Detailed reason for rejection (required)")
-
-    category = serializers.ChoiceField(
-        choices=[
-            ("POOR_QUALITY", "Poor Quality/Unreadable"),
-            ("INCOMPLETE", "Incomplete Information"),
-            ("EXPIRED", "Document Expired"),
-            ("WRONG_TYPE", "Wrong Document Type"),
-            ("SUSPICIOUS", "Suspicious/Fraudulent"),
-            ("NOT_VERIFIABLE", "Cannot Be Verified"),
-            ("DUPLICATE", "Duplicate Document"),
-            ("OTHER", "Other"),
-        ],
-        required=False,
-        default="OTHER",
-        help_text="Category of rejection reason",
-    )
-
-    severity = serializers.ChoiceField(
-        choices=[
-            ("LOW", "Low - Minor Issues"),
-            ("MEDIUM", "Medium - Needs Correction"),
-            ("HIGH", "High - Significant Issues"),
-            ("CRITICAL", "Critical - Cannot Be Accepted"),
-        ],
-        required=False,
-        default="MEDIUM",
-        help_text="Severity level of the rejection",
-    )
-
-    allow_resubmission = serializers.BooleanField(
-        default=True, help_text="Whether the user is allowed to resubmit this document"
-    )
-
-    resubmission_deadline = serializers.DateField(
-        required=False, allow_null=True, help_text="Deadline for resubmission (YYYY-MM-DD)"
-    )
-
-    suggested_corrections = serializers.ListField(
-        child=serializers.CharField(max_length=200),
-        required=False,
-        default=list,
-        help_text="Suggested corrections for the user",
-    )
-
-    internal_notes = serializers.CharField(
-        required=False, allow_blank=True, max_length=1000, help_text="Internal notes for staff reference only"
+    reason = serializers.CharField(
+        required=True, max_length=1000, help_text="Detailed reason for rejection (required) - will be sent to user"
     )
 
     notify_user = serializers.BooleanField(default=True, help_text="Whether to notify the user about the rejection")
-
-    escalation_required = serializers.BooleanField(
-        default=False, help_text="Whether this rejection requires escalation"
-    )
-
-    escalation_reason = serializers.CharField(
-        required=False, allow_blank=True, max_length=500, help_text="Reason for escalation if required"
-    )
-
-    def validate_resubmission_deadline(self, value):
-        """Validate resubmission deadline is in the future"""
-        if value and value < timezone.now().date():
-            raise serializers.ValidationError("Resubmission deadline must be in the future")
-        return value
-
-    def validate_suggested_corrections(self, value):
-        """Validate suggested corrections"""
-        if value and len(value) > 10:
-            raise serializers.ValidationError("Maximum 10 suggested corrections allowed")
-        return value
-
-    def validate(self, data):
-        """Validate escalation data"""
-        if data.get("escalation_required") and not data.get("escalation_reason"):
-            raise serializers.ValidationError(
-                {"escalation_reason": "Escalation reason is required when escalation is needed"}
-            )
-
-        # If not allowing resubmission, don't require deadline
-        if not data.get("allow_resubmission") and data.get("resubmission_deadline"):
-            data["resubmission_deadline"] = None
-
-        return data
 
 
 # review
@@ -517,3 +377,25 @@ class SimpleDocumentSerializer(serializers.ModelSerializer):
     class Meta:
         model = Document
         fields = ["id", "original_filename", "document_type", "status", "uploaded_at"]
+
+
+# ===== Statistics / Dashboard Serializers =====
+class DocumentStatsSerializer(serializers.Serializer):
+    """Serializer for document statistics responses"""
+
+    total_documents = serializers.IntegerField()
+    pending = serializers.IntegerField()
+    approved = serializers.IntegerField()
+    rejected = serializers.IntegerField()
+    by_document_type = serializers.DictField(
+        child=serializers.DictField(), help_text="Mapping of document type to counts"
+    )
+    user_type = serializers.CharField()
+
+
+class StaffDocumentDashboardSerializer(serializers.Serializer):
+    """Serializer for staff dashboard response"""
+
+    recent_activity = DocumentSerializer(many=True)
+    urgent_pending = serializers.IntegerField()
+    dashboard_actions = serializers.DictField(child=serializers.CharField())

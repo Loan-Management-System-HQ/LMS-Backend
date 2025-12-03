@@ -32,8 +32,6 @@ class Document(models.Model):
         ("GOVT_ID", "Government Photo ID"),
         ("PAYROLL", "Pay Slip"),
         ("CREDIT_HISTORY", "Credit History"),
-        ("ADDRESS_PROOF", "Proof of Address"),
-        ("OTHER", "Other"),
     ]
 
     DOCUMENT_STATUS = [
@@ -69,17 +67,25 @@ class Document(models.Model):
     link = models.CharField(max_length=500, db_column="link", default="")  # URL or file path prod only
     file = models.FileField(upload_to=user_document_path, max_length=500, db_column="file", default="")  # dev only
 
-    # Display filename (can be same as original or modified)
-    display_filename = models.CharField(max_length=255, default="", db_column="displayFilename")
-
     # Store original filename exactly as uploaded
     original_filename = models.CharField(max_length=255, default="", db_column="originalFilename")
 
-    # ADD THESE MISSING FIELDS: [ERD doesn't have it]
-    file_name = models.CharField(max_length=255, db_column="fileName")
-    file_path = models.CharField(max_length=500, db_column="filePath", default="")
+    # File metadata
     file_size = models.IntegerField(default=0, db_column="fileSize")  # in bytes
     mime_type = models.CharField(max_length=100, default="application/octet-stream")
+
+    # Rejection note from staff
+    rejection_note = models.TextField(blank=True, default="", db_column="rejectionNote")
+
+    # Link to loan application (optional)
+    loan_application = models.ForeignKey(
+        "loans.LoanApplication",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="linked_documents",
+        db_column="loanApplicationID",
+    )
 
     # Timestamps
     uploaded_at = models.DateTimeField(auto_now_add=True, db_column="uploadedAt")
@@ -100,14 +106,6 @@ class Document(models.Model):
             # File upload mode
             if not self.original_filename:
                 self.original_filename = os.path.basename(self.file.name)
-
-            # Set display filename
-            if not self.display_filename:
-                self.display_filename = self.original_filename
-
-            # Extract stored filename and path
-            self.file_name = os.path.basename(self.file.name)
-            self.file_path = self.file.name  # Relative to MEDIA_ROOT
 
             # Set file size
             if hasattr(self.file, "size"):
@@ -140,12 +138,6 @@ class Document(models.Model):
                     self.original_filename = filename
                 else:
                     self.original_filename = f"{self.document_type}.file"
-
-            if not self.display_filename:
-                self.display_filename = self.original_filename
-
-            if not self.file_name:
-                self.file_name = self.original_filename
 
             # Try to determine MIME type from URL extension
             if not self.mime_type or self.mime_type == "application/octet-stream":
@@ -232,13 +224,6 @@ class Document(models.Model):
     @property
     def status_display(self):
         return self.get_status_display()
-
-    @property
-    def stored_filename(self):
-        """Get the actual stored filename (for file uploads)"""
-        if self.file:
-            return os.path.basename(self.file.name)
-        return ""
 
     def get_download_response(self):
         """Prepare file download response (for file uploads only)"""
