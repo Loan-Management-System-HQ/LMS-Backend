@@ -32,6 +32,8 @@ class Document(models.Model):
         ("GOVT_ID", "Government Photo ID"),
         ("PAYROLL", "Pay Slip"),
         ("CREDIT_HISTORY", "Credit History"),
+        ("BANK_STATEMENT", "Bank Statement"),
+        ("OTHER", "Other"),
     ]
 
     DOCUMENT_STATUS = [

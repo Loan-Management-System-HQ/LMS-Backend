@@ -182,8 +182,9 @@ class LoanViewSet(viewsets.ReadOnlyModelViewSet):
             return Loan.objects.all()
 
         # Customers can only see their loans
-        if hasattr(user, "customer"):
-            customer_loan_ids = CustomerLoan.objects.filter(customer=user.customer).values_list("loan_id", flat=True)
+        # Note: related_name in Customer model is 'customer_profile'
+        if hasattr(user, "customer_profile"):
+            customer_loan_ids = CustomerLoan.objects.filter(customer=user.customer_profile).values_list("loan_id", flat=True)
 
             return Loan.objects.filter(id__in=customer_loan_ids)
 
@@ -216,17 +217,32 @@ class InstallmentViewSet(viewsets.ReadOnlyModelViewSet):
 
         if getattr(user, "is_staff", False):
             return Installment.objects.all()
-        return Installment.objects.filter(loan__borrowers__user=user)
+        return Installment.objects.filter(loan__customers__user=user)
 
 
 class PaymentView(generics.GenericAPIView):
-    """Mock payment view"""
+    """Payment view"""
 
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = PaymentSerializer
 
     def post(self, request, pk=None):
-        return Response({"status": "Payment processed (mock)"})
+        serializer = self.get_serializer(data=request.data)
+        if serializer.is_valid():
+            data = serializer.validated_data
+            installment = data["installment"]
+            amount = data["amount"]
+            
+            # Update installment
+            installment.mark_as_paid(amount)
+            
+            return Response({
+                "status": "Payment processed successfully",
+                "installment_id": installment.id,
+                "new_status": installment.status,
+                "amount_paid": amount
+            })
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
 class LoanCalculatorView(generics.GenericAPIView):
@@ -238,8 +254,8 @@ class LoanCalculatorView(generics.GenericAPIView):
     def post(self, request):
         serializer = self.get_serializer(data=request.data)
         if serializer.is_valid():
-            # Implement calculation logic here
-            return Response(serializer.data)
+            result = serializer.calculate()
+            return Response(result)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
@@ -268,8 +284,8 @@ class DashboardView(generics.GenericAPIView):
             }
         else:
             # Customer stats
-            user_loans = Loan.objects.filter(borrowers__user=user)
-            user_apps = LoanApplication.objects.filter(applicants__user=user)
+            user_loans = Loan.objects.filter(customers__user=user)
+            user_apps = LoanApplication.objects.filter(users=user)
 
             data = {
                 "total_loans": user_loans.count(),

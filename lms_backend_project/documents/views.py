@@ -6,6 +6,7 @@ from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework import generics, permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.filters import OrderingFilter, SearchFilter
+from rest_framework.parsers import FormParser, MultiPartParser
 from rest_framework.response import Response
 
 from .api_schema import approve_schema, list_schema, reject_schema, upload_schema
@@ -74,70 +75,78 @@ class DocumentViewSet(viewsets.ModelViewSet):
 
     # ==== User Actions ====#
     @upload_schema
-    @action(detail=False, methods=["post"])
+    @action(detail=False, methods=["post"], parser_classes=[MultiPartParser, FormParser])
     def upload(self, request):
-        """Upload a new document (file or link)"""
-        # Strictly enforce authentication to prevent AnonymousUser errors with UUID fields
-        if not request.user.is_authenticated:
-            return Response(
-                {"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED
-            )
+        """Upload a document"""
+        try:
+            # Strictly enforce authentication to prevent AnonymousUser errors with UUID fields
+            if not request.user.is_authenticated:
+                return Response(
+                    {"detail": "Authentication credentials were not provided."}, status=status.HTTP_401_UNAUTHORIZED
+                )
 
-        serializer = DocumentUploadSerializer(data=request.data)
+            serializer = DocumentUploadSerializer(data=request.data)
+            if serializer.is_valid():
+                # Prepare data for Document creation
+                document_data = {
+                    "document_type": serializer.validated_data["document_type"],
+                    "display_filename": serializer.validated_data.get("display_filename", ""),
+                }
 
-        if serializer.is_valid():
-            # Prepare document data
-            document_data = {
-                "uploaded_by": request.user,
-                "document_type": serializer.validated_data["document_type"],
-            }
+                if serializer.validated_data.get("file"):
+                    document_data["file"] = serializer.validated_data["file"]
+                elif serializer.validated_data.get("link"):
+                    document_data["link"] = serializer.validated_data["link"]
 
-            # Handle file upload
-            if "file" in serializer.validated_data and serializer.validated_data["file"]:
-                document_data["file"] = serializer.validated_data["file"]
+                # Handle loan application linking
+                loan_app = None
+                if (
+                    "loan_application_id" in serializer.validated_data
+                    and serializer.validated_data["loan_application_id"]
+                ):
+                    try:
+                        from loans.models import LoanApplication
 
-            # Handle external link
-            elif "link" in serializer.validated_data and serializer.validated_data["link"]:
-                document_data["link"] = serializer.validated_data["link"]
+                        loan_app_id = serializer.validated_data["loan_application_id"]
+                        loan_app = LoanApplication.objects.get(id=loan_app_id)
+                        document_data["loan_application"] = loan_app
+                    except LoanApplication.DoesNotExist:
+                        return Response(
+                            {"error": f"Loan application with ID {loan_app_id} not found"},
+                            status=status.HTTP_404_NOT_FOUND,
+                        )
+                    except Exception as e:
+                        print(f"Error finding loan application: {e}")
+                        # Continue without linking if there's an issue with the ID format or lookup
+                        pass
 
-            # Handle loan application linking
-            loan_app = None
-            if "loan_application_id" in serializer.validated_data and serializer.validated_data["loan_application_id"]:
-                try:
-                    from loans.models import LoanApplication
+                # Create document
+                # Ensure uploaded_by is set to current user
+                if request.user.is_authenticated:
+                    document_data["uploaded_by"] = request.user
 
-                    loan_app_id = serializer.validated_data["loan_application_id"]
-                    loan_app = LoanApplication.objects.get(id=loan_app_id)
-                    document_data["loan_application"] = loan_app
-                except LoanApplication.DoesNotExist:
-                    return Response(
-                        {"error": f"Loan application with ID {loan_app_id} not found"},
-                        status=status.HTTP_404_NOT_FOUND,
-                    )
+                document = Document.objects.create(**document_data)
 
-            # Set display filename if provided
-            if "display_filename" in serializer.validated_data:
-                document_data["display_filename"] = serializer.validated_data["display_filename"]
+                # Auto-link to loan application documents if loan_app exists
+                if loan_app:
+                    try:
+                        from loans.models import LoanApplicationDocument
 
-            # Create document
-            document = Document.objects.create(**document_data)
+                        LoanApplicationDocument.objects.create(loan_application=loan_app, document=document)
+                    except Exception as e:
+                        # Document created but linking failed - log but don't fail
+                        print(f"Failed to link document to application: {str(e)}")
 
-            # Auto-link to loan application documents if loan_app exists
-            if loan_app:
-                try:
-                    from loans.models import LoanApplicationDocument
+                return Response(
+                    DocumentSerializer(document, context={"request": request}).data, status=status.HTTP_201_CREATED
+                )
 
-                    LoanApplicationDocument.objects.create(loan_application=loan_app, document=document)
-                except Exception as e:
-                    # Document created but linking failed - log but don't fail
-                    print(f"Failed to link document to application: {str(e)}")
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            import traceback
 
-            # Return created document
-            doc_serializer = DocumentSerializer(document, context={"request": request})
-
-            return Response(doc_serializer.data, status=status.HTTP_201_CREATED)
-
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+            traceback.print_exc()
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     @action(detail=True, methods=["get"])
     def download(self, request, pk=None):
