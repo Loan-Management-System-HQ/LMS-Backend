@@ -1,52 +1,55 @@
-# users/api_schema.py
 from drf_yasg import openapi
-from drf_yasg.views import get_schema_view
-from rest_framework import permissions
+from drf_yasg.utils import swagger_auto_schema
 
-schema_view = get_schema_view(
-    openapi.Info(
-        title="Loan Management System API",
-        default_version="v1",
-        description="""
-        # Loan Management System API
+from .serializers import (
+    UserLoginSerializer,
+    UserRegisterSerializer,
+    UserSerializer,
+)
 
-        ## Authentication
+# --- Schemas for user/auth endpoints ---
 
-        This API uses JWT (JSON Web Tokens) for authentication.
+# Register
+register_schema = swagger_auto_schema(
+    operation_description="Register a new user.",
+    request_body=UserRegisterSerializer,
+    responses={
+        201: UserSerializer,
+        400: "Bad Request",
+    },
+)
 
-        ### Steps:
-        1. **Register** a new user at `/api/auth/register/`
-        2. **Login** at `/api/auth/login/` to get JWT tokens
-        3. Use the **access token** in the Authorization header:
 
-        ```
-        Authorization: Bearer <your_access_token_here>
-        ```
+# Login
+login_schema = swagger_auto_schema(
+    operation_description="Login and retrieve access + refresh tokens.",
+    request_body=UserLoginSerializer,
+    responses={
+        200: openapi.Response(
+            description="Login successful",
+            examples={"application/json": {"access": "<jwt_access_token>", "refresh": "<jwt_refresh_token>"}},
+        ),
+        401: "Unauthorized",
+        400: "Bad Request",
+    },
+)
 
-        ### Token Types:
-        - **Access Token**: Short-lived (1 day), used for API requests
-        - **Refresh Token**: Long-lived (7 days), used to get new access tokens
 
-        ## Endpoints
+# Profile (GET / PUT)
+profile_get_schema = swagger_auto_schema(
+    operation_description="Get current user's profile.",
+    responses={200: UserSerializer, 401: "Unauthorized"},
+)
 
-        ### Authentication
-        - `POST /api/auth/register/` - Register new user
-        - `POST /api/auth/login/` - User login
-        - `POST /api/auth/token/refresh/` - Refresh access token
-        - `GET /api/auth/profile/` - Get user profile
-        - `PUT /api/auth/profile/` - Update user profile
-        - `POST /api/auth/logout/` - User logout
+profile_put_schema = swagger_auto_schema(
+    operation_description="Update current user's profile.",
+    request_body=UserSerializer,
+    responses={200: UserSerializer, 400: "Bad Request", 401: "Unauthorized"},
+)
 
-        ### Loan Management
-        - *Coming soon* - Loan simulation
-        - *Coming soon* - Loan application
-        - *Coming soon* - Document upload
-        - *Coming soon* - Payment tracking
-        """,
-        terms_of_service="https://www.google.com/policies/terms/",
-        contact=openapi.Contact(email="contact@lms.local"),
-        license=openapi.License(name="BSD License"),
-    ),
-    public=True,
-    permission_classes=(permissions.AllowAny,),
+
+# Logout
+logout_schema = swagger_auto_schema(
+    operation_description="Logout the user (invalidate refresh token).",
+    responses={200: "Logged out", 400: "Bad Request"},
 )
