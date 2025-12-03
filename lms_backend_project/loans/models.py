@@ -1,6 +1,8 @@
 import uuid
+from decimal import Decimal
 
 from django.db import models
+from django.utils import timezone
 
 
 # LoanApplication model
@@ -54,6 +56,53 @@ class LoanApplication(models.Model):
 
     def __str__(self):
         return f"Loan Application {self.id.hex[:8]}"
+
+    def calculate_emi(self):
+        """
+        Calculate Equated Monthly Installment (EMI) using the formula:
+        EMI = [P x R x (1+R)^N]/[(1+R)^N-1]
+        where:
+        P = principal loan amount
+        R = monthly interest rate
+        N = number of monthly installments
+        """
+        P = float(self.amount)
+        R = float(self.interest_rate) / (12 * 100)  # Convert annual rate to monthly and decimal
+        N = int(self.duration)
+
+        if R == 0:  # If interest rate is 0%
+            emi = P / N
+        else:
+            emi = (P * R * (1 + R) ** N) / (((1 + R) ** N) - 1)
+
+        return Decimal(round(emi, 2))
+
+        return emi * self.duration
+
+    def get_total_payable(self):
+        """Calculate total payable amount"""
+        emi = self.calculate_emi()
+        return emi * self.duration
+
+    def get_total_interest(self):
+        """Calculate total interest payable"""
+        return self.get_total_payable() - self.amount
+
+    @property
+    def customer(self):
+        """Get the primary customer for this application"""
+        user_loan_app = self.userloanapplication_set.first()
+        if user_loan_app:
+            return user_loan_app.user
+        return None
+
+    @property
+    def customer_name(self):
+        """Get customer name"""
+        customer = self.customer
+        if customer:
+            return customer.get_full_name()
+        return "Unknown"
 
 
 # Many-to-Many User <-> LoanApplication junction table
@@ -136,6 +185,35 @@ class Loan(models.Model):
     def __str__(self):
         return f"Loan {self.id.hex[:8]} - ${self.amount}"
 
+    def calculate_outstanding_balance(self):
+        """Calculate outstanding principal balance"""
+        from decimal import Decimal
+
+        # Sum of all principal payments made
+        total_principal_paid = self.installments.aggregate(total=models.Sum("payment_amount"))["total"] or Decimal(
+            "0.00"
+        )
+
+        # For simplicity, assuming payment_amount goes toward principal first
+        # In a real system, you'd need to track principal vs interest separately
+        return self.amount - total_principal_paid
+
+    def get_next_due_date(self):
+        """Get the next due installment date"""
+        next_installment = self.installments.filter(status="PENDING").order_by("due_date").first()
+
+        if next_installment:
+            return next_installment.due_date
+        return None
+
+    @property
+    def primary_customer(self):
+        """Get primary customer for this loan"""
+        customer_loan = self.customerloan_set.first()
+        if customer_loan:
+            return customer_loan.customer
+        return None
+
 
 # Many-to-Many Customer <-> Loan junction table
 class CustomerLoan(models.Model):
@@ -177,8 +255,6 @@ class Installment(models.Model):
     payment_date = models.DateTimeField(null=True, blank=True, db_column="paymentDate")
 
     # ADD THESE MISSING FIELDS: [ERD doesn't have it]
-    principal_due = models.DecimalField(max_digits=15, decimal_places=2, default=0)
-    interest_due = models.DecimalField(max_digits=15, decimal_places=2, default=0)
     late_fee = models.DecimalField(max_digits=15, decimal_places=2, default=0)
 
     # timestamps
@@ -191,3 +267,25 @@ class Installment(models.Model):
 
     def __str__(self):
         return f"Installment {self.id.hex[:8]} - Loan {self.loan.id.hex[:8]}"
+
+    @property
+    def is_overdue(self):
+        """Check if installment is overdue"""
+        return self.status == "PENDING" and self.due_date < timezone.now()
+
+    @property
+    def balance_due(self):
+        """Calculate remaining balance"""
+        return self.due_amount - self.payment_amount
+
+    def mark_as_paid(self, amount_paid, payment_date=None):
+        """Mark installment as paid (fully or partially)"""
+        self.payment_amount = amount_paid
+        self.payment_date = payment_date or timezone.now()
+
+        if amount_paid >= self.due_amount:
+            self.status = "PAID"
+        elif amount_paid > 0:
+            self.status = "PARTIAL"
+
+        self.save()
