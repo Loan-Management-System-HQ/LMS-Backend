@@ -1,5 +1,6 @@
-from decimal import Decimal
 import random
+from decimal import Decimal
+
 from django.core.management.base import BaseCommand
 
 
@@ -8,37 +9,48 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         from django.contrib.auth import get_user_model
-        from users.models import Staff, Customer
-        from simulations.models import SimulationHeader, SimulationDetail
-        from loans.models import LoanApplication, UserLoanApplication, LoanApplicationDocument
         from documents.models import Document
+        from loans.models import LoanApplication, LoanApplicationDocument, UserLoanApplication
+        from simulations.models import SimulationDetail, SimulationHeader
+        from users.models import Customer, Staff
 
         User = get_user_model()
 
         self.stdout.write("Seeding mock data...")
 
-        # Create staff users
+        # Create or ensure staff users
         staff_users = []
         for i, role in enumerate(["LOAN_OFFICER", "ADMIN"], start=1):
             email = f"staff{i}@example.com"
-            if not User.objects.filter(email=email).exists():
-                user = User.objects.create_user(email=email, password="Password123!", name=f"Staff {i}")
-                staff = Staff.objects.create(user=user, role=role)
-                staff_users.append(user)
-        self.stdout.write(f"Created {len(staff_users)} staff users")
+            user_defaults = {"name": f"Staff {i}", "password": "Password123!"}
+            user, created = User.objects.get_or_create(email=email, defaults={"name": user_defaults["name"]})
+            if created:
+                # If created via get_or_create, set password properly
+                user.set_password("Password123!")
+                user.save()
+            # Ensure Staff record exists for this user
+            Staff.objects.get_or_create(user=user, defaults={"role": role})
+            staff_users.append(user)
+        self.stdout.write(f"Ensured {len(staff_users)} staff users (created if missing)")
 
-        # Create customers / users
+        # Create or ensure customers / users
         customers = []
         for i in range(1, 6):
             email = f"user{i}@example.com"
-            if not User.objects.filter(email=email).exists():
-                user = User.objects.create_user(email=email, password="Password123!", name=f"User {i}")
-                customer = Customer.objects.create(user=user)
-                customers.append(user)
-        self.stdout.write(f"Created {len(customers)} customer users")
+            user, created = User.objects.get_or_create(email=email, defaults={"name": f"User {i}"})
+            if created:
+                user.set_password("Password123!")
+                user.save()
+            # Ensure Customer record exists for this user
+            Customer.objects.get_or_create(user=user)
+            customers.append(user)
+        self.stdout.write(f"Ensured {len(customers)} customer users (created if missing)")
 
-        # Create simulations for first 3 users
+        # Create simulations for first 3 users if they don't already have any
         for user in customers[:3]:
+            if SimulationHeader.objects.filter(user=user).exists():
+                continue
+
             amount = Decimal(random.randint(5000, 50000))
             duration = random.choice([12, 24, 36, 48])
             interest = Decimal(random.choice([5.5, 7.0, 9.25]))
@@ -79,22 +91,49 @@ class Command(BaseCommand):
 
         self.stdout.write("Created simulations for sample users")
 
-        # Create loan applications for first 3 users and attach documents
+        # Create loan applications for first 3 users and attach documents if not already present
+        import datetime
+        import os
+
+        from django.conf import settings
+        from django.core.files import File as DjangoFile
+
         for user in customers[:3]:
+            # If user already has an application, skip to avoid duplicates
+            if UserLoanApplication.objects.filter(user=user).exists():
+                continue
+
             app = LoanApplication.objects.create(amount=Decimal(10000), duration=24, interest_rate=Decimal("7.5"))
             UserLoanApplication.objects.create(user=user, loan_application=app)
 
-            # create and attach required documents
+            # create and attach sample documents (create file under MEDIA_ROOT)
             for dtype in ["GOVT_ID", "PAYROLL", "CREDIT_HISTORY"]:
+                # Ensure directory exists
+                media_root = getattr(settings, "MEDIA_ROOT", None) or "."  # fallback to cwd if settings not configured
+                user_dir = os.path.join(media_root, "documents", f"user_{str(user.id).replace('-', '')[:8]}")
+                os.makedirs(user_dir, exist_ok=True)
+
+                timestamp = datetime.datetime.utcnow().strftime("%Y%m%d%H%M%S%f")
+                filename = f"seed_{dtype.lower()}_{timestamp}.txt"
+                filepath = os.path.join(user_dir, filename)
+
+                # Write a small dummy file
+                with open(filepath, "wb") as f:
+                    f.write(f"Seed file for {dtype} for user {user.email}\n".encode("utf-8"))
+
+                # Create Document and attach file
                 doc = Document.objects.create(
                     uploaded_by=user,
                     document_type=dtype,
-                    file_name=f"{dtype.lower()}_{user.id.hex[:6]}.pdf",
-                    original_filename=f"{dtype.lower()}.pdf",
-                    display_filename=f"{dtype.replace('_', ' ').title()}",
-                    link="",
+                    original_filename=filename,
                     status="PENDING",
                 )
+
+                # Save file to Django FileField
+                with open(filepath, "rb") as f:
+                    django_file = DjangoFile(f)
+                    doc.file.save(filename, django_file, save=True)
+
                 LoanApplicationDocument.objects.create(loan_application=app, document=doc)
 
         self.stdout.write("Created sample loan applications with attached documents")
