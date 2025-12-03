@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     # third-party apps
     "rest_framework",
     "rest_framework_simplejwt",
+    "rest_framework_simplejwt.token_blacklist",
     "corsheaders",
     "drf_yasg",
     "django_filters",
@@ -93,12 +94,8 @@ WSGI_APPLICATION = "lms_backend_project.wsgi.application"
 
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": config("DB_NAME", default="lms_db"),
-        "USER": config("DB_USER", default="lms_user"),
-        "PASSWORD": config("DB_PASSWORD"),
-        "HOST": config("DB_HOST", default="localhost"),
-        "PORT": config("DB_PORT", default="5432"),
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
     }
 }
 

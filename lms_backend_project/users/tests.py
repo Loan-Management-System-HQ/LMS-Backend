@@ -34,7 +34,7 @@ class UserAPITestCase(APITestCase):
 
         # Existing user for login tests
         self.existing_user = User.objects.create_user(
-            username="existing@example.com", name="Existing User", phone="9876543210", password="existingpass123"
+            email="existing@example.com", name="Existing User", phone="9876543210", password="existingpass123"
         )
         self.existing_user.is_active = True
         self.existing_user.save()
@@ -207,7 +207,7 @@ class ModelTestCase(TestCase):
         user = User.objects.create_user(email="staff@example.com", name="Staff User", password="staffpass123")
         staff = Staff.objects.create(user=user, role="LOAN_OFFICER")
         self.assertIn("Staff User", str(staff))
-        self.assertIn("LOAN_OFFICER", str(staff))
+        self.assertIn("Loan Officer", str(staff))
 
     def test_customer_str_method(self):
         """Test Customer model string representation"""

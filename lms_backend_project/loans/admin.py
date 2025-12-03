@@ -13,7 +13,7 @@ class LoanApplicationAdmin(admin.ModelAdmin):
 @admin.register(UserLoanApplication)
 class UserLoanApplicationAdmin(admin.ModelAdmin):
     list_display = ["id", "user", "loan_application"]
-    list_filter = ["created_at"]
+    list_filter = ["loan_application__created_at"]
     search_fields = ["user__username", "loan_application__id"]
 
 
