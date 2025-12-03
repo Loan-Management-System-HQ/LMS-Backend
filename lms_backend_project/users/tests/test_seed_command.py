@@ -20,8 +20,8 @@ class SeedCommandTests(TestCase):
             call_command("seed_mock_data")
 
             # Basic assertions: the command should create simulation and loan application records
-            from simulations.models import SimulationHeader
             from loans.models import LoanApplication
+            from simulations.models import SimulationHeader
 
             self.assertTrue(SimulationHeader.objects.exists())
             self.assertTrue(LoanApplication.objects.exists())
@@ -36,9 +36,9 @@ class SeedCommandTests(TestCase):
     def test_seed_idempotent_on_second_run(self):
         with override_settings(MEDIA_ROOT=self.tmp_media):
             call_command("seed_mock_data")
-            from simulations.models import SimulationHeader
-            from loans.models import LoanApplication
             from documents.models import Document
+            from loans.models import LoanApplication
+            from simulations.models import SimulationHeader
 
             sim_count = SimulationHeader.objects.count()
             app_count = LoanApplication.objects.count()
@@ -50,5 +50,7 @@ class SeedCommandTests(TestCase):
             # Counts should not have multiplied
             self.assertEqual(sim_count, SimulationHeader.objects.count())
             self.assertEqual(app_count, LoanApplication.objects.count())
-            # Documents may be created per application; since we skipped creating applications if user had them, doc count should remain same
+            # Documents may be created per application. Because the seeder skips creating
+            # applications when the user already has them, the document count should
+            # remain unchanged after a second run of the seed command.
             self.assertEqual(doc_count, Document.objects.count())
